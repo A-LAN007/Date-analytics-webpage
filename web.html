@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>智能数据看板</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+background-color: #0a0c10;
+font-family: 'SF Pro Display', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+color: #eef2ff;
+padding: 0;
+margin: 0;
+-webkit-font-smoothing: antialiased;
+}
+.dashboard {
+max-width: 1600px;
+margin: 0 auto;
+padding: 32px 32px;
+}
+.nav-bar {
+position: sticky;
+top: 0;
+z-index: 100;
+background: rgba(10, 12, 16, 0.88);
+backdrop-filter: blur(30px);
+-webkit-backdrop-filter: blur(30px);
+border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+padding: 0 36px;
+transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.nav-container {
+max-width: 1600px;
+margin: 0 auto;
+display: flex;
+justify-content: space-between;
+align-items: center;
+flex-wrap: wrap;
+gap: 16px;
+height: 72px;
+}
+.nav-logo {
+display: flex;
+align-items: center;
+gap: 12px;
+font-weight: 600;
+font-size: 1.25rem;
+letter-spacing: -0.3px;
+}
+.nav-logo i { color: #ff2d55; font-size: 1.5rem; }
+.nav-menu {
+display: flex;
+gap: 6px;
+flex-wrap: wrap;
+}
+.nav-item {
+padding: 10px 18px;
+cursor: pointer;
+border-radius: 24px;
+transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+font-weight: 500;
+font-size: 0.92rem;
+color: #b9c3e0;
+white-space: nowrap;
+}
+.nav-item:hover {
+background: rgba(255, 45, 85, 0.12);
+color: #ff7b9c;
+transform: scale(1.03);
+}
+.nav-item.active {
+background: #ff2d55;
+color: white;
+box-shadow: 0 6px 15px -4px rgba(255,45,85,0.35);
+}
+.nav-actions {
+display: flex;
+gap: 12px;
+align-items: center;
+}
+.card {
+background: rgba(20, 22, 32, 0.85);
+backdrop-filter: blur(2px);
+border: 1px solid rgba(255, 255, 255, 0.06);
+border-radius: 24px;
+padding: 24px 26px;
+box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.5);
+transition: all 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.card:hover {
+border-color: rgba(255, 45, 85, 0.25);
+background: rgba(24, 26, 38, 0.95);
+transform: translateY(-3px);
+box-shadow: 0 18px 40px -12px rgba(0,0,0,0.6);
+}
+.section-title {
+font-size: 1.35rem;
+font-weight: 600;
+display: flex;
+align-items: center;
+gap: 12px;
+margin-bottom: 20px;
+border-left: 4px solid #ff2d55;
+padding-left: 14px;
+letter-spacing: -0.2px;
+}
+.section-title i { color: #ff2d55; font-size: 1.3rem; }
+.badge {
+background: rgba(255,45,85,0.12);
+color: #ff7b9c;
+border-radius: 20px;
+padding: 5px 12px;
+font-size: 0.7rem;
+font-weight: 500;
+margin-left: 10px;
+}
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 1.4rem; margin-bottom: 2rem; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.6rem; margin-bottom: 2rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6rem; margin-bottom: 2rem; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.kpi-value { font-size: 2.2rem; font-weight: 700; letter-spacing: -1px; line-height: 1.15; margin: 8px 0; }
+.trend-up { color: #2bd67b; }
+.trend-down { color: #ff5c5c; }
+.progress-bar { background: #2c2f3e; border-radius: 40px; height: 8px; margin-top: 14px; overflow: hidden; }
+.progress-fill {
+background: linear-gradient(90deg, #ff2d55, #ff7b2c);
+width: 0%;
+height: 100%;
+border-radius: 40px;
+transition: width 0.8s cubic-bezier(0.25,1,0.5,1);
+}
+.metric-label { font-size: 0.75rem; color: #9ca3af; text-transform: uppercase; font-weight: 500; margin-bottom: 6px; letter-spacing: 0.4px; }
+hr { border-color: rgba(255,255,255,0.07); margin: 16px 0; }
+.funnel-step {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 12px;
+background: #1e212e;
+padding: 12px 14px;
+border-radius: 16px;
+cursor: pointer;
+transition: all 0.25s ease;
+}
+.funnel-step:hover { background: #2a2e40; transform: translateX(3px); }
+.funnel-bar { flex: 1; margin-left: 12px; height: 12px; background: #2d3042; border-radius: 20px; overflow: hidden; }
+.funnel-fill { background: #ff2d55; width: 0%; height: 100%; transition: width 0.6s ease; }
+.alert-red { color: #ff5c5c; font-weight: 600; }
+.alert-green { color: #2bd67b; }
+.alert-yellow { color: #ffb347; }
+.tag { background: #2c2f3e; border-radius: 14px; padding: 5px 12px; font-size: 0.7rem; display: inline-block; }
+.task-item {
+background: #15171f;
+border-radius: 16px;
+padding: 14px 16px;
+margin-bottom: 10px;
+cursor: pointer;
+transition: all 0.25s ease;
+}
+.task-item:hover { background: #202231; transform: translateX(3px); }
+.status-badge { background: rgba(255,45,85,0.15); border-radius: 20px; padding: 3px 10px; font-size: 0.7rem; }
+button.refresh-btn, .export-btn {
+background: #ff2d55;
+border: none;
+color: white;
+padding: 10px 20px;
+border-radius: 24px;
+font-weight: 600;
+cursor: pointer;
+transition: all 0.3s cubic-bezier(0.25,1,0.5,1);
+font-size: 0.85rem;
+box-shadow: 0 4px 12px -2px rgba(255,45,85,0.3);
+}
+button.refresh-btn:hover, .export-btn:hover {
+background: #e61e46;
+transform: translateY(-2px) scale(1.03);
+box-shadow: 0 8px 18px -4px rgba(255,45,85,0.4);
+}
+.export-btn { background: #3a3f5e; box-shadow: none; }
+.export-btn:hover { background: #474d6e; }
+.clickable {
+cursor: pointer;
+transition: all 0.15s ease;
+}
+.clickable:active { transform: scale(0.97); opacity: 0.9; }
+.page { display: none; animation: pageFade 0.45s cubic-bezier(0.25,1,0.5,1); }
+.page.active-page { display: block; }
+@keyframes pageFade {
+from { opacity:0; transform: translateY(10px); }
+to { opacity:1; transform: translateY(0); }
+}
+.alert-card-item {
+background: #1a1d2a;
+border-radius: 16px;
+padding: 16px;
+margin-bottom: 12px;
+border-left: 3px solid;
+transition: all 0.25s ease;
+}
+.alert-card-item:hover { transform: translateX(4px); }
+.modal {
+display: none;
+position: fixed;
+top: 0; left: 0;
+width: 100%; height: 100%;
+background: rgba(0,0,0,0.65);
+backdrop-filter: blur(10px);
+-webkit-backdrop-filter: blur(10px);
+justify-content: center;
+align-items: center;
+z-index: 1000;
+animation: modalBg 0.35s ease;
+}
+@keyframes modalBg { from { opacity:0; } to { opacity:1; } }
+.modal-content {
+background: #1a1d2b;
+border-radius: 28px;
+max-width: 500px;
+width: 90%;
+padding: 28px;
+border: 1px solid rgba(255,45,85,0.15);
+box-shadow: 0 25px 50px -15px rgba(0,0,0,0.7);
+animation: modalPop 0.4s cubic-bezier(0.25,1,0.5,1);
+}
+@keyframes modalPop {
+from { opacity:0; transform: scale(0.92); }
+to { opacity:1; transform: scale(1); }
+}
+.modal-header {
+display: flex;
+justify-content: space-between;
+margin-bottom: 20px;
+font-weight: 700;
+font-size: 1.4rem;
+}
+.modal-close {
+background: none;
+border: none;
+color: #ff7b9c;
+font-size: 1.6rem;
+cursor: pointer;
+transition: all 0.2s;
+width: 36px; height:36px;
+border-radius:50%;
+display:flex; align-items:center; justify-content:center;
+}
+.modal-close:hover { background:rgba(255,45,85,0.1); }
+.modal-body { line-height: 1.6; color: #ccc; font-size:0.95rem; }
+.time-filter-btn {
+background: #1e212e;
+border:none;
+color:#b9c3e0;
+padding:8px 16px;
+border-radius:20px;
+cursor:pointer;
+transition:all 0.3s;
+font-weight:500;
+font-size:0.85rem;
+}
+.time-filter-btn:hover { background:#2a2e40; color:#fff; }
+.time-filter-btn.active { background:#ff2d55; color:#fff; }
+@media (max-width: 1000px) {
+.dashboard { padding: 20px 16px; }
+.grid-2, .grid-3 { grid-template-columns: 1fr; }
+.nav-bar { padding: 0 16px; }
+.nav-container { flex-direction: column; height:auto; padding:16px 0; gap:12px; }
+.nav-menu { justify-content: center; }
+.card { padding:20px; }
+}
+.info-row { display: flex; justify-content: space-between; margin-bottom: 10px; align-items:center; }
+.priority-high { color: #ff5c5c; }
+.priority-mid { color: #ffb347; }
+.priority-low { color: #2bd67b; }
+
+.realtime-switch-container {
+display: flex;
+align-items: center;
+gap: 8px;
+background: #1e212e;
+padding: 4px 12px;
+border-radius: 32px;
+font-size: 0.75rem;
+}
+.switch {
+position: relative;
+display: inline-block;
+width: 44px;
+height: 22px;
+}
+.switch input {
+opacity: 0;
+width: 0;
+height: 0;
+}
+.slider {
+position: absolute;
+cursor: pointer;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+background-color: #2c2f3e;
+transition: 0.3s;
+border-radius: 34px;
+}
+.slider:before {
+position: absolute;
+content: "";
+height: 16px;
+width: 16px;
+left: 3px;
+bottom: 3px;
+background-color: white;
+transition: 0.3s;
+border-radius: 50%;
+}
+input:checked + .slider {
+background-color: #ff2d55;
+}
+input:checked + .slider:before {
+transform: translateX(22px);
+}
+.threshold-btn {
+background: rgba(255,45,85,0.12);
+border: 1px solid rgba(255,45,85,0.3);
+color: #ff7b9c;
+padding: 6px 14px;
+border-radius: 24px;
+font-size: 0.75rem;
+cursor: pointer;
+transition: 0.2s;
+}
+.threshold-btn:hover {
+background: rgba(255,45,85,0.25);
+transform: translateY(-1px);
+}
+.risk-card-ext {
+background: linear-gradient(135deg, #1e212e, #15171f);
+border-left: 4px solid #ffb347;
+}
+</style>
+</head>
+<body>
+
+<div class="nav-bar">
+<div class="nav-container">
+<div class="nav-logo">
+<i class="fas fa-chart-line"></i>
+<span>DataVision</span>
+</div>
+<div class="nav-menu" id="navMenu">
+<div data-page="overview" class="nav-item active">📊 总览看板</div>
+<div data-page="attribution" class="nav-item">🔍 归因分析</div>
+<div data-page="alert" class="nav-item">⚠️ 预警中心</div>
+<div data-page="task" class="nav-item">✅ 行动任务</div>
+<div data-page="review" class="nav-item">📈 预测复盘</div>
+<div data-page="detail" class="nav-item">📋 明细报表</div>
+</div>
+<div class="nav-actions" id="navActions">
+<button class="export-btn" id="exportBtn"><i class="fas fa-download"></i> 导出</button>
+<button class="refresh-btn" id="refreshDataBtn"><i class="fas fa-dice-d6"></i> 随机刷新</button>
+</div>
+</div>
+</div>
+
+<div class="dashboard">
+<!-- 基础信息栏 -->
+<div class="card" style="margin-bottom: 28px;">
+<div class="flex-between" style="flex-wrap: wrap;">
+<div>
+<div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+<h1 style="font-size: 1.8rem; font-weight: 700; letter-spacing:-0.4px;">智能决策看板</h1>
+<span class="badge">多页面架构 | 实时预警</span>
+</div>
+<p style="color: #b9c3e0; margin-top: 8px; line-height:1.5;">业务线：全域零售 | 数据口径：动态模拟，点击刷新按钮更新 | 负责人：数据产品团队</p>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<div class="tag"><i class="far fa-calendar-alt"></i> <span id="dateRangeLabel">本周 (04.13-04.19)</span></div>
+<div class="tag"><i class="fas fa-chart-line"></i> 同比口径：2025年同期</div>
+</div>
+</div>
+<div style="display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap;" id="timeFilterGroup">
+<button data-range="day" class="time-filter-btn">今日</button>
+<button data-range="week" class="time-filter-btn active">本周</button>
+<button data-range="month" class="time-filter-btn">本月</button>
+<button data-range="yoy" class="time-filter-btn">累计同比</button>
+<span style="margin-left: auto; font-size: 0.75rem; color:#9ca3af;"><i class="fas fa-info-circle"></i> 点击任意卡片/图表查看详情</span>
+</div>
+</div>
+
+<!-- 页面1：总览看板 -->
+<div id="page-overview" class="page active-page">
+<div id="kpiContainer" class="grid-4"></div>
+<div class="grid-2">
+<div id="dimensionContainer" class="card"></div>
+<div id="processContainer" class="card"></div>
+</div>
+<div id="chartContainer" class="card" style="margin-bottom: 2rem;"></div>
+<div class="grid-2">
+<div id="alertOverviewContainer" class="card"></div>
+<div id="attributionOverviewContainer" class="card"></div>
+</div>
+</div>
+
+<!-- 页面2：归因分析 -->
+<div id="page-attribution" class="page">
+<div id="attributionDetailContainer" class="card" style="margin-bottom: 1.6rem;"></div>
+<div class="grid-2">
+<div id="attributionChannelContainer" class="card"></div>
+<div id="attributionRegionContainer" class="card"></div>
+</div>
+<div id="attributionCorrelationContainer" class="card"></div>
+</div>
+
+<!-- 页面3：预警中心 -->
+<div id="page-alert" class="page">
+<div id="alertThresholdContainer" class="card" style="margin-bottom: 1.6rem;"></div>
+<div class="grid-2">
+<div id="alertFluctuationContainer" class="card"></div>
+<div id="alertExceptionContainer" class="card"></div>
+</div>
+<div id="alertListContainer" class="card"></div>
+</div>
+
+<!-- 页面4：行动任务 -->
+<div id="page-task" class="page">
+<div id="taskPendingContainer" class="card" style="margin-bottom: 1.6rem;"></div>
+<div class="grid-2">
+<div id="taskInProgressContainer" class="card"></div>
+<div id="taskCompletedContainer" class="card"></div>
+</div>
+<div id="taskNextTargetContainer" class="card"></div>
+</div>
+
+<!-- 页面5：预测复盘 -->
+<div id="page-review" class="page">
+<div id="reviewHistoryContainer" class="card" style="margin-bottom: 1.6rem;"></div>
+<div class="grid-2">
+<div id="reviewForecastContainer" class="card"></div>
+<div id="reviewTrendContainer" class="card"></div>
+</div>
+<div id="reviewExperienceContainer" class="card"></div>
+</div>
+
+<!-- 页面6：明细报表 -->
+<div id="page-detail" class="page">
+<div id="detailTopContainer" class="card" style="margin-bottom: 1.6rem;"></div>
+<div class="grid-2">
+<div id="detailBottomContainer" class="card"></div>
+<div id="detailExceptionContainer" class="card"></div>
+</div>
+<div id="detailChannelContainer" class="card"></div>
+</div>
+</div>
+
+<!-- 模态框 -->
+<div id="infoModal" class="modal">
+<div class="modal-content">
+<div class="modal-header">
+<span>📋 详细分析</span>
+<button class="modal-close" id="closeModalBtn">&times;</button>
+</div>
+<div class="modal-body" id="modalBody">加载中...</div>
+</div>
+</div>
+
+<script>
+let currentTimeRange = 'week';
+let currentPage = 'overview';
+let trendChart, barChart, pieChart;
+let currentDashboardData = null;
+
+// 生成随机数（min~max，可保留小数位数）
+const rand = (min, max, decimals = 0) => {
+let val = min + Math.random() * (max - min);
+return decimals === 0 ? Math.round(val) : parseFloat(val.toFixed(decimals));
+};
+
+// 根据时间范围获取数据缩放系数
+function getScaleFactor() {
+switch(currentTimeRange) {
+case 'day': return { gmv: 0.14, order: 0.16, user: 0.17, exposure: 0.18 };
+case 'week': return { gmv: 1.0, order: 1.0, user: 1.0, exposure: 1.0 };
+case 'month': return { gmv: 4.3, order: 4.4, user: 4.6, exposure: 4.2 };
+case 'yoy': return { gmv: 1.0, order: 1.0, user: 1.0, exposure: 1.0 };
+default: return { gmv: 1.0, order: 1.0, user: 1.0, exposure: 1.0 };
+}
+}
+
+/**
+ * 计算移动平均线（MA3和MA5）
+ * 用于趋势平滑，识别短期和中期走势
+ * @param {Array<number>} data - 原始数据序列
+ * @returns {Object} { ma3, ma5 } 移动平均数组，不足位置为null
+ */
+function calculateMovingAverages(data) {
+const ma3 = [], ma5 = [];
+for (let i = 0; i < data.length; i++) {
+if (i >= 2) {
+let sum3 = data[i-2] + data[i-1] + data[i];
+ma3.push(sum3 / 3);
+} else { ma3.push(null); }
+if (i >= 4) {
+let sum5 = data[i-4] + data[i-3] + data[i-2] + data[i-1] + data[i];
+ma5.push(sum5 / 5);
+} else { ma5.push(null); }
+}
+return { ma3, ma5 };
+}
+
+// 生成全部随机模拟数据（基于当前时间范围）
+function generateRandomData() {
+const scale = getScaleFactor();
+let baseGmv = rand(120, 210, 1);
+let baseOrders = rand(35, 55, 0);
+let baseUsers = rand(22, 35, 0);
+let baseExposure = rand(800, 1600, 0);
+let gmvActual = baseGmv * scale.gmv;
+let orders = baseOrders * scale.order;
+let users = baseUsers * scale.user;
+let exposure = baseExposure * scale.exposure;
+if (currentTimeRange === 'day') {
+gmvActual = Math.min(gmvActual, baseGmv * 0.2);
+orders = Math.min(orders, baseOrders * 0.22);
+users = Math.min(users, baseUsers * 0.23);
+exposure = Math.min(exposure, baseExposure * 0.25);
+}
+const gmvTarget = gmvActual * rand(0.88, 1.12, 2);
+const completionRate = (gmvActual / gmvTarget) * 100;
+let yoyGmv, momGmv;
+if (currentTimeRange === 'yoy') {
+const lastYearGmv = gmvActual / rand(1.05, 1.18, 2);
+yoyGmv = ((gmvActual - lastYearGmv) / lastYearGmv) * 100;
+momGmv = rand(-4, 10, 1);
+} else {
+yoyGmv = rand(-3, 22, 1);
+momGmv = rand(-4, 11, 1);
+}
+const conversion = rand(2.6, 5.5, 2);
+const profit = gmvActual * rand(0.22, 0.31, 2);
+const cost = gmvActual - profit;
+const onlinePct = rand(56, 76, 1);
+const offlinePct = 100 - onlinePct;
+const appPct = rand(30, 48, 1);
+const miniPct = rand(18, 38, 1);
+const douyinOrders = rand(6, 14);
+const eastPct = rand(32, 46, 1);
+const southPct = rand(22, 34, 1);
+const northPct = rand(12, 21, 1);
+const otherPct = 100 - eastPct - southPct - northPct;
+const newUserPct = rand(25, 44, 1);
+const oldUserPct = 100 - newUserPct;
+const memberContribution = rand(58, 76, 1);
+const repurchase = rand(36, 54, 1);
+const premiumPct = rand(28, 46, 1);
+const midPct = rand(34, 52, 1);
+const basicPct = 100 - premiumPct - midPct;
+let clicks = exposure * rand(0.065, 0.12, 2);
+let visits = clicks * rand(0.68, 0.84, 2);
+const ctr = (clicks / exposure) * 100;
+const addToCartRate = rand(12, 23, 1);
+const orderRate = rand(6, 12.5, 1);
+const avgProcessHours = rand(1.2, 3.3, 1);
+const responseRate = rand(94, 99.2, 1);
+const cac = rand(38, 66, 0);
+const lossRate = rand(1.2, 3.6, 1);
+const southDrop = rand(-21, -6, 1);
+const eastGrowth = rand(2, 15, 1);
+const cacAlert = cac > 54;
+const abnormalOrders = rand(3, 11, 0);
+const conversionDrop = rand(-8, -2, 1);
+let dailyAvg = gmvActual / (currentTimeRange === 'day' ? 1 : (currentTimeRange === 'week' ? 7 : (currentTimeRange === 'month' ? 30 : 7)));
+dailyAvg = Math.max(dailyAvg, 3);
+let trendData = [];
+for (let i = 0; i < 7; i++) trendData.push(rand(dailyAvg * 0.75, dailyAvg * 1.35, 0));
+const { ma3, ma5 } = calculateMovingAverages(trendData);
+const channelOrders = [ rand(orders * 0.22, orders * 0.36, 0), rand(orders * 0.16, orders * 0.28, 0), rand(orders * 0.18, orders * 0.31, 0), rand(orders * 0.1, orders * 0.21, 0), rand(orders * 0.04, orders * 0.11, 0) ];
+const visitFunnel = Math.round(visits);
+const cartFunnel = Math.round(visits * addToCartRate / 100);
+const orderFunnel = Math.round(visits * orderRate / 100);
+const payFunnel = Math.round(orderFunnel * rand(86, 97, 1) / 100);
+const tasks = {
+pending: [ { name: '华南大区销量挽回计划', priority: '高', deadline: '2026-04-25', owner: '陈敏', status: '待启动' }, { name: 'CAC成本优化专项', priority: '高', deadline: '2026-04-30', owner: '王晨', status: '待启动' }, { name: '618预热流量方案制定', priority: '中', deadline: '2026-05-10', owner: '李彤', status: '待启动' } ],
+inProgress: [ { name: '漏斗转化率优化', priority: '高', progress: '65%', owner: '产品运营部', deadline: '2026-04-28' }, { name: '会员体系升级', priority: '中', progress: '40%', owner: '会员运营部', deadline: '2026-05-15' } ],
+completed: [ { name: 'F1联名活动落地', priority: '高', completionDate: '2026-04-10', result: 'GMV提升+23%' }, { name: '抖音投放策略调整', priority: '中', completionDate: '2026-04-05', result: 'ROI提升至3.2' } ]
+};
+return { gmvActual, gmvTarget, completionRate, yoyGmv, momGmv, orders, users, conversion, profit, cost, onlinePct, offlinePct, appPct, miniPct, douyinOrders, eastPct, southPct, northPct, otherPct, newUserPct, oldUserPct, memberContribution, repurchase, premiumPct, midPct, basicPct, exposure, clicks, visits, ctr, addToCartRate, orderRate, avgProcessHours, responseRate, cac, lossRate, southDrop, eastGrowth, cacAlert, abnormalOrders, conversionDrop, trendData, ma3, ma5, channelOrders, visitFunnel, cartFunnel, orderFunnel, payFunnel, tasks, timeRange: currentTimeRange };
+}
+
+const modal = document.getElementById('infoModal');
+const modalBody = document.getElementById('modalBody');
+function showDetail(content) { modalBody.innerHTML = content; modal.style.display = 'flex'; }
+function closeModal() { modal.style.display = 'none'; }
+document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+window.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+// 为可点击元素绑定详情弹窗
+function bindClickables() {
+document.querySelectorAll('.clickable-card, .funnel-step, .task-item, .dimension-item, .process-item, .kpi-card, .alert-card-item, .detail-item').forEach(el => {
+if (!el.hasAttribute('data-bound')) {
+el.classList.add('clickable');
+el.setAttribute('data-bound', 'true');
+el.addEventListener('click', (e) => {
+e.stopPropagation();
+const title = el.querySelector('.metric-label')?.innerText || el.innerText.slice(0, 40);
+showDetail(`<strong>📌 ${title || '数据详情'}</strong><br><br>模拟详细分析面板。<br>实际业务中可跳转对应报表。<br><br>🔍 当前数值：${el.innerText.slice(0, 100)}`);
+});
+}
+});
+if (trendChart) { const canvas = document.getElementById('trendCanvas'); if (canvas) { canvas.style.cursor = 'pointer'; canvas.onclick = () => showDetail('📈 趋势监控图：白色实线为GMV，绿色虚线为MA3(3日移动平均)，红色虚线为MA5(5日移动平均)。短期均线上穿长期均线为积极信号。'); } }
+if (barChart) { const barCanvas = document.getElementById('barCanvas'); if (barCanvas) { barCanvas.style.cursor = 'pointer'; barCanvas.onclick = () => showDetail('📊 渠道订单对比：APP和小程序贡献超60%订单，线下门店近期略有下滑。'); } }
+if (pieChart) { const pieCanvas = document.getElementById('pieCanvas'); if (pieCanvas) { pieCanvas.style.cursor = 'pointer'; pieCanvas.onclick = () => showDetail('🥧 新老客占比：老客复购率稳定，新客转化有提升空间。'); } }
+}
+
+// 渲染总览页面（KPI、维度、过程、图表、预警概览、归因速览）
+function renderOverview(d) {
+document.getElementById('kpiContainer').innerHTML = `<div class="card kpi-card clickable-card"><div class="metric-label">总目标 (GMV)</div><div class="kpi-value">¥${d.gmvTarget.toFixed(1)}M</div><div>实际完成：<strong>¥${d.gmvActual.toFixed(1)}M</strong> <span class="${d.yoyGmv>=0?'trend-up':'trend-down'}">${d.yoyGmv>=0?'↑'+d.yoyGmv.toFixed(1):'↓'+Math.abs(d.yoyGmv).toFixed(1)}%</span></div><div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(100, d.completionRate)}%;"></div></div><div class="flex-between"><span>完成率 ${d.completionRate.toFixed(1)}%</span><span>同比 ${d.yoyGmv>=0?'+'+d.yoyGmv.toFixed(1):d.yoyGmv.toFixed(1)}%</span></div></div>
+<div class="card kpi-card clickable-card"><div class="metric-label">营收 / GMV</div><div class="kpi-value">¥${d.gmvActual.toFixed(1)}M</div><div>${d.momGmv>=0?'环比 +'+d.momGmv.toFixed(1):'环比 '+d.momGmv.toFixed(1)}% <span class="${d.momGmv>=0?'trend-up':'trend-down'}">↗</span> &nbsp; 同比 ${d.yoyGmv>=0?'+'+d.yoyGmv.toFixed(1):d.yoyGmv.toFixed(1)}%</div><div>订单量: <strong>${d.orders}K</strong> <span class="trend-up">↑${rand(2,12,0)}%</span></div><div>用户数: ${d.users}K <span class="trend-up">↑${rand(3,15,0)}%</span></div></div>
+<div class="card kpi-card clickable-card"><div class="metric-label">转化率 / 利润</div><div class="kpi-value">${d.conversion}%</div><div>同比 +${rand(0.1,0.9,1)}pp &nbsp; 环比 +${rand(0.05,0.5,2)}pp</div><div>利润: ¥${d.profit.toFixed(1)}M <span class="trend-up">↑${rand(3,14,0)}%</span></div><div>成本: ¥${d.cost.toFixed(1)}M <span class="trend-down">↓${rand(1,5,1)}%</span></div></div>
+<div class="card kpi-card clickable-card"><div class="metric-label">达成进度条 & 健康度</div><div>年度目标完成: ${rand(68, 92, 0)}%</div><div class="progress-bar"><div class="progress-fill" style="width: ${rand(68,92,0)}%;"></div></div><div>剩余进度: 64% | 超进度 +${rand(3,18,0)}%</div><div><i class="fas fa-flag-checkered"></i> ${rand(0,1)===1?'预估超额完成':'目标可达成'}</div></div>`;
+document.getElementById('dimensionContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-pie"></i> 维度拆解 · 结构洞察</div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;"><div class="dimension-item clickable-card"><div class="metric-label">📱 渠道维度</div><div>线上: ${d.onlinePct}% ↑${rand(1,7,0)}%</div><div>线下: ${d.offlinePct}% ↓${rand(0,4,0)}%</div><div>APP: ${d.appPct}% | 小程序: ${d.miniPct}%</div></div><div class="dimension-item clickable-card"><div class="metric-label">🌍 区域维度</div><div>华东: ${d.eastPct}% | 华南: ${d.southPct}% | 华北: ${d.northPct}%</div><div>其他: ${d.otherPct}%</div></div><div class="dimension-item clickable-card"><div class="metric-label">👥 人群维度</div><div>新客: ${d.newUserPct}% (转化率 ${rand(2,4,1)}%)</div><div>老客: ${d.oldUserPct}% (复购率 ${d.repurchase}%)</div><div>会员贡献 ${d.memberContribution}%</div></div><div class="dimension-item clickable-card"><div class="metric-label">🏷️ 产品维度</div><div>高端: ${d.premiumPct}% | 中端: ${d.midPct}% | 入门: ${d.basicPct}%</div><div>SKU动销率: ${rand(78, 92, 0)}%</div></div></div><hr><div class="flex-between clickable-card"><span>最优渠道: 抖音投放 (ROI ${rand(2.5,4.2,1)})</span><span>待优化: 搜索品牌词 ↓${rand(4,12,0)}%</span></div>`;
+document.getElementById('processContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-line"></i> 过程指标 · 因果链路</div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;"><div class="clickable-card"><span class="metric-label">📢 流量</span><br>曝光: ${Math.round(d.exposure)}K ↑${rand(2,8,0)}%<br>点击: ${Math.round(d.clicks)}K ↑${rand(3,10,0)}%<br>访问: ${Math.round(d.visits)}K ↑${rand(1,7,0)}%</div><div class="clickable-card"><span class="metric-label">🎯 转化</span><br>点击率: ${d.ctr.toFixed(1)}% ↑${rand(0.1,0.8,1)}%<br>加购率: ${d.addToCartRate}% <br>下单率: ${d.orderRate}%<br>复购率: ${d.repurchase}%</div><div class="clickable-card"><span class="metric-label">⚙️ 效率</span><br>处理时长: ${d.avgProcessHours}h ↓${rand(5,18,0)}%<br>响应率: ${d.responseRate}%<br>完成时效: ${rand(1.2,2.5,1)}天</div><div class="clickable-card"><span class="metric-label">💰 成本</span><br>获客成本: ¥${d.cac} <span class="${d.cacAlert?'alert-red':''}">${d.cacAlert?'超阈值':'正常'}</span><br>人均成本: ¥${rand(80,180,0)}<br>损耗率: ${d.lossRate}%</div></div><div class="progress-bar"><div class="progress-fill" style="width: ${rand(75,95,0)}%;"></div></div><div class="flex-between clickable-card"><span>健康度: ${rand(72,96,0)}/100</span><span>加购→下单流失 ${rand(12,28,0)}%</span></div>`;
+const chartHtml = `<div class="section-title"><i class="fas fa-chart-scatter"></i> 可视化分析 (点击图表看详情)</div><div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px;"><div><canvas id="trendCanvas" height="200" style="max-height:220px; width:100%"></canvas><p class="metric-label">趋势监控 (GMV + MA3/MA5)</p></div><div><canvas id="barCanvas" height="200" style="max-height:220px; width:100%"></canvas><p class="metric-label">各渠道订单量(K)</p></div><div><canvas id="pieCanvas" height="180" style="max-height:200px; width:100%"></canvas><p class="metric-label">新老客占比</p></div><div><div style="font-weight:500;">转化漏斗 (点击步骤)</div><div class="funnel-step"><span>访问</span><span>${d.visitFunnel.toLocaleString()}</span><div class="funnel-bar"><div class="funnel-fill" style="width:100%"></div></div><span>100%</span></div><div class="funnel-step"><span>加购</span><span>${d.cartFunnel.toLocaleString()}</span><div class="funnel-bar"><div class="funnel-fill" style="width:${(d.cartFunnel/d.visitFunnel*100).toFixed(0)}%"></div></div><span>${(d.cartFunnel/d.visitFunnel*100).toFixed(1)}%</span></div><div class="funnel-step"><span>下单</span><span>${d.orderFunnel.toLocaleString()}</span><div class="funnel-bar"><div class="funnel-fill" style="width:${(d.orderFunnel/d.visitFunnel*100).toFixed(0)}%"></div></div><span>${(d.orderFunnel/d.visitFunnel*100).toFixed(1)}%</span></div><div class="funnel-step"><span>支付</span><span>${d.payFunnel.toLocaleString()}</span><div class="funnel-bar"><div class="funnel-fill" style="width:${(d.payFunnel/d.visitFunnel*100).toFixed(0)}%"></div></div><span>${(d.payFunnel/d.visitFunnel*100).toFixed(1)}%</span></div><div class="metric-label">整体转化率: ${(d.payFunnel/d.visitFunnel*100).toFixed(1)}%</div></div></div>`;
+document.getElementById('chartContainer').innerHTML = chartHtml;
+if (trendChart) trendChart.destroy(); if (barChart) barChart.destroy(); if (pieChart) pieChart.destroy();
+trendChart = new Chart(document.getElementById('trendCanvas'), { type: 'line', data: { labels: ['D-6','D-5','D-4','D-3','D-2','昨日','今日'], datasets: [{ label: 'GMV(万元)', data: d.trendData, borderColor: '#ffffff', backgroundColor: 'rgba(255,255,255,0.05)', tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#ff2d55' }, { label: 'MA3 (3日平均)', data: d.ma3, borderColor: '#2bd67b', borderWidth: 2, borderDash: [5,5], fill: false, tension: 0.2, pointRadius: 0 }, { label: 'MA5 (5日平均)', data: d.ma5, borderColor: '#ff5c5c', borderWidth: 2, borderDash: [5,5], fill: false, tension: 0.2, pointRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } }, tooltip: { mode: 'index', intersect: false } } } });
+barChart = new Chart(document.getElementById('barCanvas'), { type: 'bar', data: { labels: ['APP','小程序','线下','抖音','其他'], datasets: [{ label: '订单量(千单)', data: d.channelOrders, backgroundColor: '#ff5e7e', borderRadius: 8 }] }, options: { responsive: true, plugins: { legend: { labels: { color: '#ddd' } } } } });
+pieChart = new Chart(document.getElementById('pieCanvas'), { type: 'pie', data: { labels: [`新客 ${d.newUserPct}%`, `老客 ${d.oldUserPct}%`], datasets: [{ data: [d.newUserPct, d.oldUserPct], backgroundColor: ['#ff5e7e','#36a2eb'] }] }, options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#eee' } } } } });
+document.getElementById('alertOverviewContainer').innerHTML = `<div class="section-title"><i class="fas fa-exclamation-triangle"></i> 重点预警 <span class="badge">${d.abnormalOrders}条告警</span></div><div class="alert-card-item" style="border-left-color: #ff5c5c;"><i class="fas fa-chart-line alert-red"></i> <strong>华南大区</strong> 销售额环比 ${d.southDrop}% <span class="alert-red">(超阈值-10%)</span><br><span class="tag">责任人: 区域经理</span> <span class="tag">需立即干预</span></div><div class="alert-card-item" style="border-left-color: #ffaa33;"><i class="fas fa-dollar-sign"></i> <strong>获客成本</strong> ¥${d.cac} <span class="${d.cacAlert?'alert-red':'alert-green'}">${d.cacAlert?'超预算20%':'正常'}</span><br><span class="tag">优化中</span></div><div class="alert-card-item" style="border-left-color: #ff5c5c;"><i class="fas fa-chart-line"></i> <strong>整体转化率</strong> 环比 ${d.conversionDrop}% <span class="alert-red">(连续2周下滑)</span></div>`;
+document.getElementById('attributionOverviewContainer').innerHTML = `<div class="section-title"><i class="fas fa-brain"></i> 归因速览</div><div class="clickable-card"><i class="fas fa-calendar-week"></i> <strong>关键影响因素</strong><br>✅ F1联名活动拉动新客+${rand(15,35,0)}%，GMV拉升明显<br>⚠️ 华南区暴雨天气导致线下客流减少，线下渠道同比-${Math.abs(d.southDrop)}%<br>📈 抖音投流ROI提升至${rand(2.5,3.8,1)}，贡献额外增量</div><hr><div class="clickable-card"><i class="fas fa-chart-simple"></i> <strong>相关性标注</strong><br>• 节假日(清明)后消费回落正常，预计下周回升<br>• 竞品调价影响中端产品转化，高端系列不受影响</div>`;
+}
+
+// 渲染归因分析页面
+function renderAttributionPage(d) {
+document.getElementById('attributionDetailContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-line"></i> 升降原因深度分析</div><div class="grid-2"><div class="clickable-card"><div class="metric-label">📈 增长驱动因素</div><div><span class="trend-up">正向贡献 +23%</span><br>• F1联名活动：新客增长 +${rand(18,32,0)}%<br>• 抖音投放：ROI ${rand(2.8,3.9,1)}，贡献GMV ¥${rand(8,22,0)}M<br>• 会员日活动：复购率提升至${rand(42,58,0)}%</div></div><div class="clickable-card"><div class="metric-label">📉 下滑抑制因素</div><div><span class="trend-down">负向影响 -${Math.abs(d.conversionDrop)}%</span><br>• 华南区天气影响：线下客流 -${Math.abs(d.southDrop)}%<br>• 竞品价格战：中端产品转化 -${rand(4,9,1)}%<br>• 获客成本上涨：CAC +${rand(5,15,0)}%</div></div></div>`;
+document.getElementById('attributionChannelContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-pie"></i> 渠道归因</div><div class="info-row"><span>抖音</span><span class="trend-up">↑${rand(15,35,0)}%</span><span>贡献增量 ${rand(8,18,0)}%</span></div><div class="info-row"><span>小红书</span><span class="trend-up">↑${rand(10,25,0)}%</span><span>贡献增量 ${rand(5,12,0)}%</span></div><div class="info-row"><span>搜索品牌词</span><span class="trend-down">↓${rand(5,15,0)}%</span><span>负向影响</span></div><div class="info-row"><span>线下门店</span><span class="trend-down">↓${Math.abs(d.southDrop)}%</span><span>华南区为主要拖累</span></div>`;
+document.getElementById('attributionRegionContainer').innerHTML = `<div class="section-title"><i class="fas fa-map-marker-alt"></i> 区域归因</div><div class="info-row"><span>华东大区</span><span class="trend-up">↑${d.eastGrowth}%</span><span>上海/杭州表现亮眼</span></div><div class="info-row"><span>华南大区</span><span class="trend-down">↓${Math.abs(d.southDrop)}%</span><span>暴雨+交通管制影响</span></div><div class="info-row"><span>华北大区</span><span class="trend-up">↑${rand(2,8,0)}%</span><span>北京春季活动拉动</span></div>`;
+document.getElementById('attributionCorrelationContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-line"></i> 相关性分析</div><div class="grid-2"><div class="clickable-card"><strong>活动相关性</strong><br>F1联名活动 vs 新客增长：相关系数 0.87<br>会员日 vs 复购率：相关系数 0.72</div><div class="clickable-card"><strong>外部因素</strong><br>天气 vs 线下客流：相关系数 -0.65<br>竞品调价 vs 中端产品转化：相关系数 -0.58</div></div>`;
+}
+
+// 渲染预警中心页面
+function renderAlertPage(d) {
+document.getElementById('alertThresholdContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-line"></i> 阈值告警 · 自动标红</div><div class="alert-card-item" style="border-left-color: #ff5c5c;"><i class="fas fa-chart-line alert-red"></i> <strong>华南大区销售额</strong> 环比 ${d.southDrop}% (阈值-10%) <span class="alert-red">[严重]</span><br><span class="tag">责任人: 陈敏</span><span class="tag">需24小时内响应</span></div><div class="alert-card-item" style="border-left-color: #ffaa33;"><i class="fas fa-dollar-sign"></i> <strong>获客成本CAC</strong> ¥${d.cac} 超预算上限¥${rand(48,55,0)} <span class="alert-yellow">[预警]</span><br><span class="tag">责任人: 王晨</span></div><div class="alert-card-item" style="border-left-color: #ffaa33;"><i class="fas fa-chart-line"></i> <strong>整体转化率</strong> ${d.conversion}% 环比-${Math.abs(d.conversionDrop)}% <span class="alert-yellow">[连续2周下滑]</span></div>`;
+document.getElementById('alertFluctuationContainer').innerHTML = `<div class="section-title"><i class="fas fa-waveform"></i> 波动告警 · 突增突降</div><div class="info-row"><span>抖音渠道订单量</span><span class="trend-up">突增 +${rand(18,35,0)}%</span><span>昨日达峰值</span></div><div class="info-row"><span>华南区线下门店</span><span class="trend-down">突降 -${Math.abs(d.southDrop)}%</span><span>连续3日下跌</span></div><div class="info-row"><span>高端系列A7销量</span><span class="trend-up">突增 +${rand(12,28,0)}%</span><span>新品推广见效</span></div>`;
+document.getElementById('alertExceptionContainer').innerHTML = `<div class="section-title"><i class="fas fa-list"></i> 异常清单</div><div class="clickable-card"><strong>异常订单 Top3</strong><br>1. 订单#${rand(10000,99999,0)} 支付超时 · 金额¥${rand(500,5000,0)}<br>2. 订单#${rand(10000,99999,0)} 库存不足取消 · 金额¥${rand(300,3000,0)}<br>3. 订单#${rand(10000,99999,0)} 风控拦截 · 金额¥${rand(1000,8000,0)}</div><div class="clickable-card"><strong>异常门店 Top3</strong><br>1. 广州天河店 环比 -${rand(15,28,0)}%<br>2. 深圳南山店 环比 -${rand(10,20,0)}%<br>3. 北京朝阳店 环比 -${rand(8,15,0)}%</div>`;
+document.getElementById('alertListContainer').innerHTML = `<div class="section-title"><i class="fas fa-bell"></i> 完整告警列表</div><table style="width:100%; border-collapse: collapse;"><tr style="border-bottom:1px solid #2c2f3e;"><th style="text-align:left; padding:8px;">指标</th><th>当前值</th><th>阈值</th><th>状态</th></tr><tr><td>华南区销售额</td><td>环比${d.southDrop}%</td><td>-10%</td><td><span class="alert-red">严重</span></td></tr><tr><td>获客成本CAC</td><td>¥${d.cac}</td><td>¥${rand(48,55,0)}</td><td><span class="alert-yellow">预警</span></td></tr><tr><td>整体转化率</td><td>${d.conversion}%</td><td>目标4.5%</td><td><span class="alert-yellow">连续下滑</span></td></tr></table>`;
+}
+
+// 渲染行动任务页面
+function renderTaskPage(d) {
+document.getElementById('taskPendingContainer').innerHTML = `<div class="section-title"><i class="fas fa-clock"></i> 待启动任务</div>${d.tasks.pending.map(t => `<div class="task-item clickable-card"><div class="flex-between"><span><strong class="priority-high">🔴 ${t.name}</strong></span><span class="status-badge">${t.status}</span></div><div>责任人：${t.owner} &nbsp; 期限：${t.deadline}</div><div>优先级：${t.priority}</div></div>`).join('')}`;
+document.getElementById('taskInProgressContainer').innerHTML = `<div class="section-title"><i class="fas fa-spinner fa-pulse"></i> 进行中任务</div>${d.tasks.inProgress.map(t => `<div class="task-item clickable-card"><div class="flex-between"><span><strong>🟡 ${t.name}</strong></span><span class="status-badge">进行中</span></div><div>责任人：${t.owner} &nbsp; 期限：${t.deadline}</div><div>进度：${t.progress}</div></div>`).join('')}`;
+document.getElementById('taskCompletedContainer').innerHTML = `<div class="section-title"><i class="fas fa-check-circle"></i> 已完成任务</div>${d.tasks.completed.map(t => `<div class="task-item clickable-card"><div class="flex-between"><span><strong>✅ ${t.name}</strong></span><span class="status-badge">已完成</span></div><div>完成日期：${t.completionDate}</div><div>成果：${t.result}</div></div>`).join('')}`;
+document.getElementById('taskNextTargetContainer').innerHTML = `<div class="section-title"><i class="fas fa-bullseye"></i> 下一阶段目标</div><div class="grid-2"><div class="clickable-card"><strong>Q2 核心目标</strong><br>• GMV 同比 +18%<br>• 转化率提升至 4.5%<br>• 获客成本降至 ¥45 以下</div><div class="clickable-card"><strong>关键举措</strong><br>• 618大促预热蓄水<br>• 会员体系2.0上线<br>• 华南区专项挽回计划</div></div>`;
+}
+
+// 渲染预测复盘页面
+function renderReviewPage(d) {
+const lastYearGmv = d.gmvActual / (1 + d.yoyGmv/100);
+document.getElementById('reviewHistoryContainer').innerHTML = `<div class="section-title"><i class="fas fa-history"></i> 历史同期对比</div><div class="grid-2"><div class="clickable-card"><strong>2025年同期</strong><br>GMV: ¥${lastYearGmv.toFixed(1)}M<br>订单量: ${(d.orders / (1 + d.yoyGmv/100)).toFixed(0)}K<br>转化率: ${(d.conversion - rand(0.3,0.9,1)).toFixed(1)}%</div><div class="clickable-card"><strong>2026年当期</strong><br>GMV: ¥${d.gmvActual.toFixed(1)}M <span class="trend-up">↑${d.yoyGmv.toFixed(1)}%</span><br>订单量: ${d.orders}K <span class="trend-up">↑${rand(5,15,0)}%</span><br>转化率: ${d.conversion}% <span class="trend-up">↑${rand(0.2,0.8,1)}pp</span></div></div>`;
+const remainingDays = rand(210, 280, 0); const remainingTarget = rand(15, 30, 1);
+document.getElementById('reviewForecastContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-line"></i> 目标完成预测</div><div class="clickable-card">当前完成率 ${d.completionRate.toFixed(1)}% | 剩余 ${remainingDays}天<br>剩余目标: ¥${remainingTarget}M | 日均需完成: ¥${(remainingTarget/remainingDays*10).toFixed(1)}万</div><div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(100, d.completionRate)}%;"></div></div><div class="flex-between"><span>预测达成率: ${rand(96, 108, 0)}%</span><span>${d.completionRate > 70 ? '📈 有望超额完成' : '⚠️ 需加快进度'}</span></div>`;
+document.getElementById('reviewTrendContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-scatter"></i> 趋势预判</div><div class="clickable-card"><strong>短期趋势 (1-2周)</strong><br>• 预计GMV环比 +${rand(3,8,1)}%<br>• 618预热带动流量增长 +${rand(10,20,0)}%</div><div class="clickable-card"><strong>长期趋势 (Q2)</strong><br>• 预计完成Q2目标的 ${rand(95, 105, 0)}%<br>• 新客转化率有望提升至 ${rand(3.2, 4.0, 1)}%</div>`;
+document.getElementById('reviewExperienceContainer').innerHTML = `<div class="section-title"><i class="fas fa-lightbulb"></i> 经验沉淀与规则优化</div><div class="grid-2"><div class="clickable-card"><strong>成功经验</strong><br>• F1联名IP效果超预期，建议延续跨界合作<br>• 抖音内容投流ROI达3.2，可复制至其他渠道</div><div class="clickable-card"><strong>改进项</strong><br>• 华南区需建立天气应急预案<br>• CAC上涨需优化投放策略<br>• 漏斗加购→下单环节流失率高，需优化</div></div>`;
+}
+
+// 渲染明细报表页面
+function renderDetailPage(d) {
+document.getElementById('detailTopContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-line"></i> TopN 排行榜</div><div class="grid-2"><div class="clickable-card"><strong>📈 GMV贡献 Top3 渠道</strong><br>1. 抖音: +${rand(18,35,0)}% (¥${rand(8,18,0)}M)<br>2. APP: +${rand(5,12,0)}% (¥${rand(5,12,0)}M)<br>3. 小程序: +${rand(3,8,0)}% (¥${rand(3,8,0)}M)</div><div class="clickable-card"><strong>🏆 销量增长 Top3 品类</strong><br>1. F1联名周边: +${rand(45,80,0)}%<br>2. 高端电子产品: +${rand(15,28,0)}%<br>3. 运动装备: +${rand(10,20,0)}%</div></div>`;
+document.getElementById('detailBottomContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-line"></i> BottomN 排行</div><div class="clickable-card"><strong>📉 下滑 Top3 渠道</strong><br>1. 搜索品牌词: -${rand(8,18,0)}%<br>2. 线下门店: -${Math.abs(d.southDrop)}%<br>3. 信息流广告: -${rand(5,12,0)}%</div><div class="clickable-card"><strong>⚠️ 预警 Top3 指标</strong><br>1. 华南区销售额: -${Math.abs(d.southDrop)}%<br>2. CAC: +${rand(5,15,0)}%<br>3. 转化率: -${Math.abs(d.conversionDrop)}%</div>`;
+document.getElementById('detailExceptionContainer').innerHTML = `<div class="section-title"><i class="fas fa-exclamation-triangle"></i> 异常明细清单</div><div class="clickable-card"><strong>异常订单明细</strong><br>• 订单#${rand(10000,99999,0)}: 支付超时 · ¥${rand(500,5000,0)} · 已退款<br>• 订单#${rand(10000,99999,0)}: 库存不足 · ¥${rand(300,3000,0)} · 已取消<br>• 订单#${rand(10000,99999,0)}: 风控拦截 · ¥${rand(1000,8000,0)} · 待人工审核</div><div class="clickable-card"><strong>异常门店明细</strong><br>• 广州天河店: 环比 -${rand(15,28,0)}% · 客流量下降<br>• 深圳南山店: 环比 -${rand(10,20,0)}% · 竞品新店冲击<br>• 北京朝阳店: 环比 -${rand(8,15,0)}% · 商圈改造影响</div>`;
+document.getElementById('detailChannelContainer').innerHTML = `<div class="section-title"><i class="fas fa-chart-simple"></i> 渠道效率对比</div><div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;"><div class="clickable-card" style="flex:1; min-width:140px;"><strong>抖音</strong><br>ROI: ${rand(2.8,3.9,1)}<br>CAC: ¥${rand(35,50,0)}</div><div class="clickable-card" style="flex:1; min-width:140px;"><strong>小红书</strong><br>ROI: ${rand(2.2,3.2,1)}<br>CAC: ¥${rand(40,55,0)}</div><div class="clickable-card" style="flex:1; min-width:140px;"><strong>搜索品牌词</strong><br>ROI: ${rand(1.8,2.5,1)}<br>CAC: ¥${rand(55,70,0)}</div></div>`;
+}
+
+// 统一渲染所有页面
+function renderAllPages(d) { renderOverview(d); renderAttributionPage(d); renderAlertPage(d); renderTaskPage(d); renderReviewPage(d); renderDetailPage(d); bindClickables(); }
+
+// 导出当前数据为CSV
+function exportToCSV() { if (!currentDashboardData) return; const d = currentDashboardData; const rows = [['指标','数值'],['GMV实际(百万)',d.gmvActual],['GMV目标(百万)',d.gmvTarget],['完成率(%)',d.completionRate.toFixed(1)],['订单量(K)',d.orders],['用户数(K)',d.users],['转化率(%)',d.conversion],['获客成本(元)',d.cac],['线上占比(%)',d.onlinePct],['华东区域占比(%)',d.eastPct],['华南区域占比(%)',d.southPct],['同比增速(%)',d.yoyGmv.toFixed(1)]]; let csv = rows.map(row=>row.join(',')).join('\n'); const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); const url = URL.createObjectURL(blob); link.href = url; link.setAttribute('download', `看板数据_${currentTimeRange}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url); showDetail('✅ 导出成功！文件已保存至下载目录。'); }
+
+// 刷新全部数据
+function refreshData() { const newData = generateRandomData(); currentDashboardData = newData; renderAllPages(newData); const rangeText = { day:'今日 (实时)', week:'本周 (04.13-04.19)', month:'本月 (04.01-04.30)', yoy:'累计同比 vs 去年' }; document.getElementById('dateRangeLabel').innerHTML = rangeText[currentTimeRange] || currentTimeRange; }
+
+// 切换时间范围
+function changeTimeRange(range) { currentTimeRange = range; refreshData(); document.querySelectorAll('.time-filter-btn').forEach(btn => { if (btn.getAttribute('data-range') === range) btn.classList.add('active'); else btn.classList.remove('active'); }); }
+
+// 切换页面
+function switchPage(pageId) { currentPage = pageId; document.querySelectorAll('.page').forEach(page => page.classList.remove('active-page')); document.getElementById(`page-${pageId}`).classList.add('active-page'); document.querySelectorAll('.nav-item').forEach(item => { if (item.getAttribute('data-page') === pageId) item.classList.add('active'); else item.classList.remove('active'); }); }
+
+// 初始化
+function init() { refreshData(); document.querySelectorAll('.time-filter-btn').forEach(btn => { btn.addEventListener('click', () => changeTimeRange(btn.getAttribute('data-range'))); }); document.getElementById('refreshDataBtn').addEventListener('click', () => refreshData()); document.getElementById('exportBtn').addEventListener('click', exportToCSV); document.querySelectorAll('.nav-item').forEach(item => { item.addEventListener('click', () => switchPage(item.getAttribute('data-page'))); }); }
+window.addEventListener('load', init);
+</script>
+
+<!-- 增强模块：实时模式、阈值配置、预测线、风险卡片等 -->
+<script>
+(function enhanceDashboard() {
+  setTimeout(() => {
+    // ----- 1. 注入实时模式开关和阈值配置按钮 -----
+    const navActions = document.getElementById('navActions');
+    if (navActions && !document.getElementById('enhanceRealtimeSwitch')) {
+      const realtimeHtml = `<div class="realtime-switch-container" style="display:flex; align-items:center; gap:10px; margin-left:5px;">
+        <i class="fas fa-sync-alt" style="font-size:12px;"></i>
+        <label style="display:flex; align-items:center; gap:6px; font-size:0.75rem;">实时模式
+          <div class="switch"><input type="checkbox" id="realtimeToggle"><span class="slider"></span></div>
+        </label>
+        <button id="thresholdConfigBtn" class="threshold-btn"><i class="fas fa-sliders-h"></i> 阈值</button>
+      </div>`;
+      navActions.insertAdjacentHTML('beforeend', realtimeHtml);
+    }
+
+    // 全局增强变量
+    let realtimeEnabled = false;
+    let realtimeInterval = null;
+    let customThresholds = { southDrop: -10, cacMax: 55, conversionMin: 4.0 };
+
+    /**
+     * 实时模式下对当前数据做微小扰动，模拟真实波动
+     * 主要调整 GMV 及关联指标，保持趋势连续性
+     */
+    function microAdjustCurrentData() {
+      if (!currentDashboardData) return;
+      const d = currentDashboardData;
+      const oldGmv = d.gmvActual;
+      const delta = (Math.random() - 0.5) * 0.012 * oldGmv;
+      let newGmv = oldGmv + delta;
+      newGmv = Math.max(newGmv, oldGmv * 0.96);
+      newGmv = Math.min(newGmv, oldGmv * 1.04);
+      const factor = newGmv / oldGmv;
+      d.gmvActual = newGmv;
+      d.gmvTarget = d.gmvTarget * factor;
+      d.completionRate = (d.gmvActual / d.gmvTarget) * 100;
+      d.orders = Math.round(d.orders * factor);
+      d.users = Math.round(d.users * factor);
+      d.profit = d.gmvActual * rand(0.22, 0.31, 2);
+      d.cost = d.gmvActual - d.profit;
+      d.trendData[6] = d.gmvActual / (currentTimeRange === 'day' ? 1 : (currentTimeRange === 'week' ? 7 : 30)) * (currentTimeRange==='yoy'?1:1);
+      if (d.trendData[6] < 0.1) d.trendData[6] = d.gmvActual * 0.12;
+      const { ma3, ma5 } = calculateMovingAverages(d.trendData);
+      d.ma3 = ma3; d.ma5 = ma5;
+      renderAllPages(d);
+      addForecastLineToChart();
+    }
+
+    function startRealtime() { if (realtimeInterval) clearInterval(realtimeInterval); realtimeInterval = setInterval(() => { if (realtimeEnabled && currentDashboardData) microAdjustCurrentData(); }, 2800); }
+    function stopRealtime() { if (realtimeInterval) { clearInterval(realtimeInterval); realtimeInterval = null; } }
+
+    // ----- 2. 向趋势图中添加线性回归预测线（未来3天）-----
+    // 基于已有 trendData 使用最小二乘法计算斜率和截距，外推3个点
+    function addForecastLineToChart() {
+      if (!trendChart || !currentDashboardData) return;
+      const data = currentDashboardData.trendData;
+      if (!data || data.length < 3) return;
+      const n = data.length;
+      let sumX=0, sumY=0, sumXY=0, sumX2=0;
+      for(let i=0;i<n;i++) { sumX+=i; sumY+=data[i]; sumXY+=i*data[i]; sumX2+=i*i; }
+      const slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
+      const intercept = (sumY - slope*sumX)/n;
+      const forecastDays = 3;
+      let forecastVals = [];
+      for(let i=1;i<=forecastDays;i++) { let pred = intercept + slope*(n+i-1); forecastVals.push(parseFloat(pred.toFixed(1))); }
+      const existingForecast = trendChart.data.datasets.find(ds => ds.label === '线性预测 (未来3天)');
+      if(existingForecast) {
+        existingForecast.data = [...Array(7).fill(null), ...forecastVals];
+        trendChart.update();
+      } else {
+        trendChart.data.datasets.push({
+          label: '线性预测 (未来3天)',
+          data: [...Array(7).fill(null), ...forecastVals],
+          borderColor: '#ffb347',
+          borderWidth: 2,
+          borderDash: [6, 8],
+          fill: false,
+          pointRadius: 0,
+          tension: 0.1
+        });
+        trendChart.update();
+      }
+    }
+
+    // 劫持刷新和渲染函数，确保预测线每次更新后重新添加
+    const originalRefresh = window.refreshData;
+    window.refreshData = function() { originalRefresh(); setTimeout(() => addForecastLineToChart(), 100); };
+    const originalRenderOverview = window.renderOverview;
+    if(originalRenderOverview) {
+      window.renderOverview = function(d) { originalRenderOverview(d); setTimeout(() => addForecastLineToChart(), 150); };
+    }
+
+    // ----- 3. 阈值配置与动态预警样式应用 -----
+    function applyThresholdsToAlerts() {
+      if (!currentDashboardData) return;
+      const d = currentDashboardData;
+      const southAlert = d.southDrop < customThresholds.southDrop;
+      const cacAlert = d.cac > customThresholds.cacMax;
+      const convAlert = d.conversion < customThresholds.conversionMin;
+      const alertContainer = document.getElementById('alertOverviewContainer');
+      if(alertContainer) {
+        const items = alertContainer.querySelectorAll('.alert-card-item');
+        if(items[0]) items[0].style.borderLeftColor = southAlert ? '#ff5c5c' : '#ffaa33';
+        if(items[1]) items[1].style.borderLeftColor = cacAlert ? '#ff5c5c' : '#2bd67b';
+      }
+      const thresContainer = document.getElementById('alertThresholdContainer');
+      if(thresContainer) {
+        const thresItems = thresContainer.querySelectorAll('.alert-card-item');
+        if(thresItems[0]) thresItems[0].style.borderLeftColor = southAlert ? '#ff5c5c' : '#ffaa33';
+        if(thresItems[1]) thresItems[1].style.borderLeftColor = cacAlert ? '#ff5c5c' : '#ffaa33';
+      }
+    }
+
+    function configThreshold() {
+      let newSouth = prompt(`华南区环比阈值 (低于此值告警, 当前${customThresholds.southDrop}%)`, customThresholds.southDrop);
+      if(newSouth !== null && !isNaN(parseFloat(newSouth))) customThresholds.southDrop = parseFloat(newSouth);
+      let newCac = prompt(`CAC上限 (元, 当前${customThresholds.cacMax})`, customThresholds.cacMax);
+      if(newCac !== null && !isNaN(parseFloat(newCac))) customThresholds.cacMax = parseFloat(newCac);
+      let newConv = prompt(`转化率目标下限 (%, 当前${customThresholds.conversionMin}%)`, customThresholds.conversionMin);
+      if(newConv !== null && !isNaN(parseFloat(newConv))) customThresholds.conversionMin = parseFloat(newConv);
+      applyThresholdsToAlerts();
+      showDetail(`阈值已更新：华南区阈值 ${customThresholds.southDrop}%，CAC上限 ¥${customThresholds.cacMax}，转化率目标 ${customThresholds.conversionMin}%`);
+    }
+
+    // ----- 4. 增加综合风险指数卡片（位于KPI区域末尾）-----
+    const kpiGrid = document.getElementById('kpiContainer');
+    if(kpiGrid && !document.getElementById('riskExtraCard')) {
+      const riskCard = document.createElement('div');
+      riskCard.id = 'riskExtraCard';
+      riskCard.className = 'card risk-card-ext clickable';
+      riskCard.innerHTML = `<div class="metric-label"><i class="fas fa-shield-alt"></i> 综合风险指数</div>
+        <div class="kpi-value" id="riskScoreVal">--</div>
+        <div>华南区风险 <span id="southRiskSpan" class="trend-down"></span> &nbsp; CAC <span id="cacRiskSpan"></span></div>
+        <div class="progress-bar mt-2"><div id="riskBarFill" class="progress-fill" style="width:0%"></div></div>`;
+      kpiGrid.appendChild(riskCard);
+      function updateRiskCard() {
+        if(!currentDashboardData) return;
+        const d = currentDashboardData;
+        let riskScore = 0;
+        if(d.southDrop < customThresholds.southDrop) riskScore += 40;
+        else if(d.southDrop < -5) riskScore += 20;
+        if(d.cac > customThresholds.cacMax) riskScore += 35;
+        else if(d.cac > 50) riskScore += 15;
+        if(d.conversion < customThresholds.conversionMin) riskScore += 25;
+        riskScore = Math.min(100, riskScore);
+        document.getElementById('riskScoreVal').innerText = riskScore;
+        document.getElementById('riskBarFill').style.width = `${riskScore}%`;
+        document.getElementById('southRiskSpan').innerHTML = `${d.southDrop}%`;
+        document.getElementById('cacRiskSpan').innerHTML = `¥${d.cac}`;
+        if(riskScore > 60) riskCard.style.borderLeftColor = '#ff5c5c';
+        else if(riskScore > 30) riskCard.style.borderLeftColor = '#ffb347';
+        else riskCard.style.borderLeftColor = '#2bd67b';
+      }
+      setInterval(updateRiskCard, 1000);
+      updateRiskCard();
+    }
+
+    // ----- 5. 预测复盘页面增加线性回归预测详情模块 -----
+    function enhanceReviewForecast() {
+      const reviewForecastDiv = document.getElementById('reviewForecastContainer');
+      if(reviewForecastDiv && !document.getElementById('linearForecastExtra')) {
+        const extraDiv = document.createElement('div');
+        extraDiv.id = 'linearForecastExtra';
+        extraDiv.className = 'clickable-card mt-3';
+        extraDiv.style.marginTop = '16px';
+        extraDiv.style.padding = '12px';
+        extraDiv.style.background = '#1e212e';
+        extraDiv.style.borderRadius = '16px';
+        reviewForecastDiv.appendChild(extraDiv);
+        function updateLinearForecast() {
+          if(!currentDashboardData) return;
+          const trend = currentDashboardData.trendData;
+          if(trend && trend.length>=3) {
+            const n = trend.length;
+            let sumX=0,sumY=0,sumXY=0,sumX2=0;
+            for(let i=0;i<n;i++) { sumX+=i; sumY+=trend[i]; sumXY+=i*trend[i]; sumX2+=i*i; }
+            const slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
+            const intercept = (sumY - slope*sumX)/n;
+            let preds = [];
+            for(let i=1;i<=3;i++) preds.push((intercept + slope*(n+i-1)).toFixed(1));
+            extraDiv.innerHTML = `<strong>📈 线性回归预测 (未来3日GMV)</strong><br> 📅 +1日: ${preds[0]} 万元 &nbsp; +2日: ${preds[1]} 万元 &nbsp; +3日: ${preds[2]} 万元<br><span class="tag">基于近7日趋势建模</span>`;
+          } else extraDiv.innerHTML = `<strong>📈 预测不可用</strong> 数据不足`;
+        }
+        setInterval(updateLinearForecast, 2000);
+        updateLinearForecast();
+      }
+    }
+
+    // 绑定事件与初始化增强
+    const realtimeToggle = document.getElementById('realtimeToggle');
+    if(realtimeToggle) {
+      realtimeToggle.addEventListener('change', (e) => { realtimeEnabled = e.target.checked; if(realtimeEnabled) startRealtime(); else stopRealtime(); });
+    }
+    const threshBtn = document.getElementById('thresholdConfigBtn');
+    if(threshBtn) threshBtn.addEventListener('click', configThreshold);
+
+    setInterval(() => { if(currentDashboardData) applyThresholdsToAlerts(); }, 1500);
+    enhanceReviewForecast();
+    setTimeout(() => { if(trendChart) addForecastLineToChart(); }, 500);
+  }, 100);
+})();
+</script>
+</body>
+</html>
